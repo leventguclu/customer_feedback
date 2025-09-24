@@ -67,10 +67,21 @@ const FeedbackForm = () => {
     setSubmitStatus(null);
 
     try {
-      const response = await fetch("/api/feedback", {
+      // N8N webhook URL - Environment variable'dan al veya fallback kullan
+      const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/feedback-form';
+      
+      const response = await fetch(N8N_WEBHOOK_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          phone: formData.phone,
+          subject: formData.subject,
+          message: formData.message,
+          timestamp: new Date().toISOString(),
+          source: 'website_form'
+        }),
       });
 
       if (response.ok) {
