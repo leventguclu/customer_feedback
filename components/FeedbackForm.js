@@ -67,24 +67,50 @@ const FeedbackForm = () => {
     setSubmitStatus(null);
 
     try {
-      // N8N webhook URL - Environment variable'dan al veya fallback kullan
-      const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/feedback-form';
-      
-      const response = await fetch(N8N_WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          subject: formData.subject,
-          message: formData.message,
-          timestamp: new Date().toISOString(),
-          source: 'website_form'
-        }),
-      });
+      // Primary attempt: Try N8N webhook directly (for local development)
+      const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_WEBHOOK_URL;
+      let success = false;
 
-      if (response.ok) {
+      const formPayload = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        subject: formData.subject,
+        message: formData.message,
+        timestamp: new Date().toISOString(),
+        source: 'website_form'
+      };
+
+      // Try N8N webhook first (for local development)
+      if (N8N_WEBHOOK_URL && N8N_WEBHOOK_URL.includes('localhost')) {
+        try {
+          const n8nResponse = await fetch(N8N_WEBHOOK_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(formPayload),
+          });
+
+          if (n8nResponse.ok) {
+            success = true;
+            console.log('Successfully sent to N8N webhook');
+          }
+        } catch (n8nError) {
+          console.log('N8N webhook not available, using fallback API');
+        }
+      }
+
+      // Fallback: Use Next.js API route (for production and when N8N is not available)
+      if (!success) {
+        const response = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(formPayload),
+        });
+
+        success = response.ok;
+      }
+
+      if (success) {
         setSubmitStatus("success");
         setFormData({
           name: "",
